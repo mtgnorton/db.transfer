@@ -37,6 +37,8 @@ func (d *Deliver) ExportDispatch() {
 
 	var wg sync.WaitGroup
 
+	var isLast bool
+
 	for i := 0; i < int(readGoroutineNumber); i++ {
 
 		startId := i * GoroutineExportNumber
@@ -49,9 +51,11 @@ func (d *Deliver) ExportDispatch() {
 
 		seelog.Infof("读取线程%v开启", i+1)
 
-		go func() {
-			d.ExportTable(startId, endId)
+		isLast = i == int(readGoroutineNumber)-1
 
+		fmt.Println(isLast)
+		go func() {
+			d.ExportTable(startId, endId, isLast)
 			defer func() {
 
 				seelog.Infof("读取线程%v完成", i+1)
@@ -72,7 +76,7 @@ func (d *Deliver) ExportDispatch() {
 
 }
 
-func (d *Deliver) ExportTable(startId, endId int) {
+func (d *Deliver) ExportTable(startId, endId int, isLast bool) {
 
 	//sql拼装
 	sqlQuery := "select"
@@ -92,7 +96,11 @@ func (d *Deliver) ExportTable(startId, endId int) {
 
 	sqlQuery += ("from " + d.Export.Table)
 
-	sqlQuery += (" where id > " + strconv.Itoa(startId) + " and id < " + strconv.Itoa(endId))
+	if !isLast {
+		sqlQuery += (" where id > " + strconv.Itoa(startId) + " and id < " + strconv.Itoa(endId))
+	} else {
+		sqlQuery += (" where id > " + strconv.Itoa(startId)) //id的大小可能大于表中数据的总数量，在最后一个线程中，不限制最大id
+	}
 
 	if d.Test.Open {
 		sqlQuery += " limit 20"
