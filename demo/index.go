@@ -40,7 +40,7 @@ func (d *optimize) Init() {
 	d.Export.Table = "dms_货币交易交易"
 	d.Import.Table = "coin_deal_orders_match"
 
-	d.Export.Field = []string{
+	d.Export.Fields = []string{
 		"买入委托",
 		"买入编号",
 		"卖出编号",
@@ -54,8 +54,8 @@ func (d *optimize) Init() {
 		"卖出手续费金额",
 	}
 
-	//d.Test = true
-	//d.Predict = true
+	d.Test.Open = true
+
 	d.Attach.Chs["user"] = make(chan struct{})
 
 	d.Attach.Data["user"] = &sync.Map{}
@@ -68,7 +68,7 @@ func (d *optimize) Init() {
 
 func (d *optimize) InitDefaultData() {
 
-	d.Import.FieldValue = map[string]interface{}{
+	d.Import.FieldsValue = map[string]interface{}{
 
 		"symbol_id": func(row map[string]*[]byte) string {
 
@@ -130,6 +130,7 @@ func (d *optimize) GetUserInfo() {
 		count++
 		d.Attach.Data["user"].Store(username, string(id))
 	}
+
 	seelog.Infof("用户总量为：%v", count)
 	close(d.Attach.Chs["user"])
 }
@@ -153,7 +154,9 @@ func (d *optimize) GetSymbolInfo() {
 		d.Attach.Data["symbols"].Store(strings.ToLower(name), string(id))
 	}
 	seelog.Infof("symbol总量为：%v", count)
+
 	close(d.Attach.Chs["symbols"])
+
 }
 
 func main() {

@@ -15,7 +15,7 @@ func (d *Deliver) Beigin(inits ...func()) {
 
 func (d *Deliver) InitBefore() {
 
-	d.Export.FieldValue = make(map[string]interface{})
+	d.Export.FieldsValue = make(map[string]interface{})
 
 	d.Attach.Chs = make(map[string]chan struct{})
 	d.Attach.Data = make(map[string]*sync.Map)
@@ -44,17 +44,17 @@ func (d *Deliver) InitBefore() {
 
 func (d *Deliver) InitAfter() {
 
-	for _, field := range d.Export.Field {
-		d.Export.FieldValue[field] = new([]byte)
+	for _, field := range d.Export.Fields {
+		d.Export.FieldsValue[field] = new([]byte)
 	}
-	d.Import.Field = make([]string, 0, len(d.Import.FieldValue))
+	d.Import.Fields = make([]string, 0, len(d.Import.FieldsValue))
 
-	for key, value := range d.Import.FieldValue {
+	for key, value := range d.Import.FieldsValue {
 		vf, ok := value.(func(row map[string]*[]byte) string)
 		if ok {
-			d.Import.FieldValue[key] = ValueFunc(vf)
+			d.Import.FieldsValue[key] = ValueFunc(vf)
 		}
-		d.Import.Field = append(d.Import.Field, key)
+		d.Import.Fields = append(d.Import.Fields, key)
 	}
 }
 

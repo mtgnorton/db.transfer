@@ -12,8 +12,8 @@ import (
 type DbInfo struct {
 	Db              *sql.DB
 	Table           string
-	Field           []string
-	FieldValue      map[string]interface{}
+	Fields          []string
+	FieldsValue     map[string]interface{}
 	GoroutineNumber float64       //每个goroutine操作数据的数量
 	Ch              chan struct{} //管理同时进行的进程数量
 }
@@ -23,6 +23,12 @@ type Attach struct {
 	Chs  map[string]chan struct{} //附加的数据是否完成
 }
 
+type Test struct {
+	Open      bool
+	HasOutput int32 //调试语句是否已经输出,0未输出
+	Number    int64 // 调试的数量
+}
+
 type Deliver struct {
 	Import DbInfo
 	Export DbInfo
@@ -30,7 +36,7 @@ type Deliver struct {
 
 	sync.Mutex
 
-	Test    bool //进行100行的数据插入测试
+	Test    Test //进行100行的数据插入测试
 	Predict bool //预处理，不进行实际插入
 
 	InsertData []map[string]string //将要进行插入的数据

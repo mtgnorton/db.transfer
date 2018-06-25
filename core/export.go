@@ -3,10 +3,11 @@ package core
 import (
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 	"sync"
 
-	"os"
+	"sync/atomic"
 
 	"db.transfer/helper"
 	"github.com/cihub/seelog"
@@ -19,6 +20,7 @@ func (d *Deliver) ExportDispatch() {
 	var number float64
 
 	err := d.Export.Db.QueryRow(sqlQuery).Scan(&number)
+
 	if err != nil {
 		seelog.Errorf("%v查询出错%v", d.Export.Table, err)
 	}
@@ -72,27 +74,29 @@ func (d *Deliver) ExportTable(startId, endId int) {
 
 	sqlQuery := "select"
 
-	exportFieldCopy := helper.Copy(d.Export.Field)
+	exportFieldsCopy := helper.Copy(d.Export.Fields)
 
-	var ExportFieldSlice = make([]interface{}, 0, len(exportFieldCopy))
+	var ExportFieldsSlice = make([]interface{}, 0, len(exportFieldsCopy))
 
-	for key, _ := range exportFieldCopy {
+	for key, _ := range exportFieldsCopy {
 		sqlQuery += (" `" + key + "` ,")
-		ExportFieldSlice = append(ExportFieldSlice, exportFieldCopy[key])
+		ExportFieldsSlice = append(ExportFieldsSlice, exportFieldsCopy[key])
 	}
 
 	sqlQueryByte := []byte(sqlQuery)
 
 	sqlQuery = string(sqlQueryByte[:len(sqlQueryByte)-1])
 
-	if d.Test {
-		sqlQuery += ("from " + d.Export.Table + " limit 20")
-	} else {
-		sqlQuery += ("from " + d.Export.Table)
+	sqlQuery += ("from " + d.Export.Table)
 
-	}
 	sqlQuery += (" where id > " + strconv.Itoa(startId) + " and id < " + strconv.Itoa(endId))
-	if d.Test {
+
+	if d.Test.Open {
+		sqlQuery += " limit 20"
+	}
+
+	if d.Test.Open && d.Test.HasOutput == 0 {
+		atomic.AddInt32(&d.Test.HasOutput, 1)
 		seelog.Info(sqlQuery)
 	}
 	exportRs, err := d.Export.Db.Query(sqlQuery)
@@ -109,17 +113,17 @@ func (d *Deliver) ExportTable(startId, endId int) {
 
 	for exportRs.Next() {
 
-		if err := exportRs.Scan(ExportFieldSlice...); err != nil {
+		if err := exportRs.Scan(ExportFieldsSlice...); err != nil {
 			seelog.Errorf("%v读取数据出错%v", d.ExportTable, err)
 			fmt.Printf("%v读取数据出错%v", d.ExportTable, err)
 		}
 
 		rowData := make(map[string]string)
 
-		for _, key := range d.Import.Field {
-			valueFunc, ok := d.Import.FieldValue[key].(ValueFunc)
+		for _, key := range d.Import.Fields {
+			valueFunc, ok := d.Import.FieldsValue[key].(ValueFunc)
 			if ok {
-				rowData[key] = valueFunc(exportFieldCopy)
+				rowData[key] = valueFunc(exportFieldsCopy)
 			} else {
 				seelog.Errorf("字段值函数断言错误")
 				seelog.Flush()

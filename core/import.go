@@ -69,7 +69,7 @@ func (d *Deliver) Insert(transfersSlice []map[string]string, start int, end int)
 
 	buffer.WriteString("INSERT INTO " + d.Import.Table + " (")
 
-	for _, field := range d.Import.Field {
+	for _, field := range d.Import.Fields {
 		buffer.WriteString(" " + field + ",")
 	}
 	buffer.Truncate(buffer.Len() - 1)
@@ -78,7 +78,7 @@ func (d *Deliver) Insert(transfersSlice []map[string]string, start int, end int)
 
 	for _, item := range transfersSlice {
 		buffer.WriteString("(")
-		for _, field := range d.Import.Field {
+		for _, field := range d.Import.Fields {
 			buffer.WriteString(item[field])
 			buffer.WriteString(",")
 		}
@@ -88,7 +88,7 @@ func (d *Deliver) Insert(transfersSlice []map[string]string, start int, end int)
 	}
 	buffer.Truncate(buffer.Len() - 1)
 
-	if d.Test {
+	if d.Test.Open {
 		seelog.Info(buffer.String())
 	}
 
