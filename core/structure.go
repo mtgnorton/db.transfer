@@ -16,6 +16,12 @@ type DbInfo struct {
 	FieldsValue     map[string]interface{}
 	GoroutineNumber float64       //每个goroutine操作数据的数量
 	Ch              chan struct{} //管理同时进行的进程数量
+
+	InsertData []map[string]string //将要进行插入的数据
+
+	NoInsertCount int64 //不进行插入的数据数量统计
+
+	ActualInsertCount int64 //实际插入数量统计
 }
 
 type Attach struct {
@@ -30,7 +36,7 @@ type Test struct {
 }
 
 type Deliver struct {
-	Import DbInfo
+	Import map[string]*DbInfo
 	Export DbInfo
 	Attach Attach
 
@@ -39,11 +45,6 @@ type Deliver struct {
 	Test    Test //进行100行的数据插入测试
 	Predict bool //预处理，不进行实际插入
 
-	InsertData []map[string]string //将要进行插入的数据
-
-	NoInsertCount int64 //不进行插入的数据数量统计
-
-	ActualInsertCount int64 //实际插入数量统计
 }
 
 type ValueFunc func(map[string]*[]byte) string

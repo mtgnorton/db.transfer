@@ -35,11 +35,16 @@ func (d *optimize) Init() {
 		seelog.Errorf("打开数据库出错%v", err)
 	}
 
-	d.Import.Db = db
+	//要导入的表
+	d.Import["match"] = &core.DbInfo{}
+	d.Import["match"].Db = db
+	d.Import["match"].Table = "coin_deal_orders_match"
+
+	d.Import["test"] = &core.DbInfo{}
+	d.Import["test"].Db = db
+	d.Import["test"].Table = "test"
 
 	d.Export.Table = "dms_货币交易交易"
-	d.Import.Table = "coin_deal_orders_match"
-
 	d.Export.Fields = []string{
 		"买入委托",
 		"买入编号",
@@ -54,8 +59,9 @@ func (d *optimize) Init() {
 		"卖出手续费金额",
 	}
 
-	d.Test.Open = true
+	//d.Test.Open = true
 
+	//附加的数据
 	d.Attach.Chs["user"] = make(chan struct{})
 
 	d.Attach.Data["user"] = &sync.Map{}
@@ -68,14 +74,15 @@ func (d *optimize) Init() {
 
 func (d *optimize) InitDefaultData() {
 
-	d.Import.FieldsValue = map[string]interface{}{
+	//
+	d.Import["match"].FieldsValue = map[string]interface{}{
 
 		"symbol_id": func(row map[string]*[]byte) string {
 
 			name := string(*row["账户"]) + string(*row["货币类型"])
 			symbolId, ok := d.Attach.Data["symbols"].Load(name)
 			if !ok {
-				d.NoInsertCount++
+				d.Import["match"].NoInsertCount++
 				return "continue"
 			}
 
@@ -87,7 +94,7 @@ func (d *optimize) InitDefaultData() {
 
 			userid, ok := d.Attach.Data["user"].Load(string(*row["买入编号"]))
 			if !ok {
-				d.NoInsertCount++
+				d.Import["match"].NoInsertCount++
 				return "continue"
 			}
 			return fmt.Sprintf("%q", userid)
@@ -97,7 +104,7 @@ func (d *optimize) InitDefaultData() {
 		"match_uid": func(row map[string]*[]byte) string {
 			userid, ok := d.Attach.Data["user"].Load(string(*row["卖出编号"]))
 			if !ok {
-				d.NoInsertCount++
+				d.Import["match"].NoInsertCount++
 				return "continue"
 
 			}
@@ -109,6 +116,10 @@ func (d *optimize) InitDefaultData() {
 		"create_time":   core.Value("交易时间", ""),
 		"status":        core.Value("", "1"),
 		"direction":     core.Value("", "0"),
+	}
+
+	d.Import["test"].FieldsValue = map[string]interface{}{
+		"username": core.Value("买入委托", ""),
 	}
 
 }
@@ -134,9 +145,10 @@ func (d *optimize) GetUserInfo() {
 	seelog.Infof("用户总量为：%v", count)
 	close(d.Attach.Chs["user"])
 }
+
 func (d *optimize) GetSymbolInfo() {
 
-	users, err := d.Import.Db.Query("select `id`,`name` from coin_symbol")
+	users, err := d.Import["match"].Db.Query("select `id`,`name` from coin_symbol")
 	if err != nil {
 
 		seelog.Errorf("读取coin_symbol出错%v", err)
@@ -177,8 +189,6 @@ func main() {
 	d.ExportDispatch()
 
 	d.ImportDispatch()
-
-	seelog.Infof("实际插入的记录总量为：%v", d.GetActualCount())
 
 	seelog.Info("插入结束")
 

@@ -66,12 +66,15 @@ func (d *Deliver) ExportDispatch() {
 
 	wg.Wait()
 
-	seelog.Infof("导出数量为%v", len(d.InsertData))
+	for _, importTable := range d.Import {
+		seelog.Infof("导出数量为%v", len(importTable.InsertData))
+	}
 
 }
 
 func (d *Deliver) ExportTable(startId, endId int) {
 
+	//sql拼装
 	sqlQuery := "select"
 
 	exportFieldsCopy := helper.Copy(d.Export.Fields)
@@ -95,10 +98,13 @@ func (d *Deliver) ExportTable(startId, endId int) {
 		sqlQuery += " limit 20"
 	}
 
+	//sql拼装完成
+
 	if d.Test.Open && d.Test.HasOutput == 0 {
 		atomic.AddInt32(&d.Test.HasOutput, 1)
 		seelog.Info(sqlQuery)
 	}
+
 	exportRs, err := d.Export.Db.Query(sqlQuery)
 	if err != nil {
 		seelog.Errorf("%v查询出错%v", d.ExportTable, err)
@@ -109,7 +115,13 @@ func (d *Deliver) ExportTable(startId, endId int) {
 	for _, item := range d.Attach.Chs {
 		<-item
 	}
-	var importData []map[string]string
+
+	//importDataTemp用于将该线程查询的数据全部查出来后，最后一起合并到总数据中
+	importDataTemp := make(map[string][]map[string]string)
+
+	for _, importTable := range d.Import {
+		importDataTemp[importTable.Table] = make([]map[string]string, 0)
+	}
 
 	for exportRs.Next() {
 
@@ -120,32 +132,40 @@ func (d *Deliver) ExportTable(startId, endId int) {
 
 		rowData := make(map[string]string)
 
-		for _, key := range d.Import.Fields {
-			valueFunc, ok := d.Import.FieldsValue[key].(ValueFunc)
-			if ok {
-				rowData[key] = valueFunc(exportFieldsCopy)
-			} else {
-				seelog.Errorf("字段值函数断言错误")
-				seelog.Flush()
-				os.Exit(1)
-			}
+		for _, importTable := range d.Import {
 
-			//如果返回continue，将跳过该条记录
-			if rowData[key] == "continue" {
-				goto stop
+			for _, key := range importTable.Fields {
+
+				valueFunc, ok := importTable.FieldsValue[key].(ValueFunc)
+				if ok {
+					rowData[key] = valueFunc(exportFieldsCopy)
+				} else {
+					seelog.Errorf("字段值函数断言错误")
+					seelog.Flush()
+					os.Exit(1)
+				}
+
+				//如果返回continue，将跳过该条记录
+				if rowData[key] == "continue" {
+					goto stop
+				}
 			}
+			importDataTemp[importTable.Table] = append(importDataTemp[importTable.Table], rowData)
 
 		}
 
-		importData = append(importData, rowData)
 	stop:
 	}
 
 	exportRs.Close()
 
+	//将每个线程获取到的数据合并的总的数据中
 	d.Lock()
 
-	d.InsertData = append(d.InsertData, importData...)
+	for _, importTable := range d.Import {
+
+		importTable.InsertData = append(importTable.InsertData, importDataTemp[importTable.Table]...)
+	}
 
 	d.Unlock()
 

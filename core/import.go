@@ -14,63 +14,70 @@ import (
 //开始进行插入预处理，判断开启的进程个数
 func (d *Deliver) ImportDispatch() {
 
-	GoroutineImportNumber := int(d.Import.GoroutineNumber)
+	for _, importTable := range d.Import {
 
-	goNumber := math.Ceil(float64(len(d.InsertData)) / d.Import.GoroutineNumber)
+		GoroutineImportNumber := int(importTable.GoroutineNumber)
 
-	seelog.Infof("开启进程数量为：%v", goNumber)
-	seelog.Infof("要插入的记录数量为：%v", len(d.InsertData))
-	seelog.Infof("不完善的记录数量为：%v", d.NoInsertCount)
+		goNumber := math.Ceil(float64(len(importTable.InsertData)) / importTable.GoroutineNumber)
 
-	beginTime := time.Now().Unix()
+		seelog.Infof("数据表%s开始进行导入", importTable.Table)
+		seelog.Infof("数据表%s开启进程数量为：%v", importTable.Table, goNumber)
+		seelog.Infof("数据表%s要插入的记录数量为：%v", importTable.Table, len(importTable.InsertData))
+		seelog.Infof("数据表%s不完善的记录数量为：%v", importTable.Table, importTable.NoInsertCount)
 
-	var wg sync.WaitGroup
+		beginTime := time.Now().Unix()
 
-	for i := 0; i < int(goNumber); i++ {
+		var wg sync.WaitGroup
 
-		start := i * GoroutineImportNumber
+		for i := 0; i < int(goNumber); i++ {
 
-		end := (i + 1) * GoroutineImportNumber
+			start := i * GoroutineImportNumber
 
-		var tempSlice []map[string]string
+			end := (i + 1) * GoroutineImportNumber
 
-		if i == int(goNumber)-1 {
+			var tempSlice []map[string]string
 
-			tempSlice = d.InsertData[start:]
-		} else {
-			tempSlice = d.InsertData[start:end]
-		}
+			if i == int(goNumber)-1 {
 
-		wg.Add(1)
-
-		d.Import.Ch <- struct{}{}
-
-		go func(i int) {
-			//_ = tempSlice
-			seelog.Infof("进程%v开启", i+1)
-
-			if !d.Predict {
-				d.Insert(tempSlice, start, end)
+				tempSlice = importTable.InsertData[start:]
+			} else {
+				tempSlice = importTable.InsertData[start:end]
 			}
 
-			defer wg.Done()
-		}(i)
+			wg.Add(1)
 
+			importTable.Ch <- struct{}{}
+
+			go func(i int) {
+
+				seelog.Infof("表%s的进程%v开启", importTable.Table, i+1)
+
+				if !d.Predict {
+					d.Insert(importTable, tempSlice, start, end)
+				}
+
+				defer wg.Done()
+			}(i)
+
+		}
+
+		wg.Wait()
+		finishTime := time.Now().Unix()
+		seelog.Infof("表%s实际消耗时间为：%v秒", importTable.Table, finishTime-beginTime)
 	}
 
-	wg.Wait()
-	finishTime := time.Now().Unix()
-	seelog.Infof("实际消耗时间为：%v秒", finishTime-beginTime)
 }
 
-func (d *Deliver) Insert(transfersSlice []map[string]string, start int, end int) {
+func (d *Deliver) Insert(importTable *DbInfo, transfersSlice []map[string]string, start int, end int) {
 
 	var buffer bytes.Buffer
 
-	buffer.WriteString("INSERT INTO " + d.Import.Table + " (")
+	buffer.WriteString("INSERT INTO " + importTable.Table + " (")
 
-	for _, field := range d.Import.Fields {
+	for _, field := range importTable.Fields {
+
 		buffer.WriteString(" " + field + ",")
+
 	}
 	buffer.Truncate(buffer.Len() - 1)
 
@@ -78,7 +85,7 @@ func (d *Deliver) Insert(transfersSlice []map[string]string, start int, end int)
 
 	for _, item := range transfersSlice {
 		buffer.WriteString("(")
-		for _, field := range d.Import.Fields {
+		for _, field := range importTable.Fields {
 			buffer.WriteString(item[field])
 			buffer.WriteString(",")
 		}
@@ -92,20 +99,20 @@ func (d *Deliver) Insert(transfersSlice []map[string]string, start int, end int)
 		seelog.Info(buffer.String())
 	}
 
-	rs, err := d.Import.Db.Exec(buffer.String())
+	rs, err := importTable.Db.Exec(buffer.String())
 
 	if err != nil {
-		seelog.Errorf("插入数据出错，出错索引为%v-%v,出错原因%v", start, end, err)
+		seelog.Errorf("表%s插入数据出错，出错索引为%v-%v,出错原因%v", importTable.Table, start, end, err)
 	}
 
 	lines, err := rs.RowsAffected()
 
 	if err != nil {
-		seelog.Errorf("获取插入行数出错%v", err)
+		seelog.Errorf("表%s获取插入行数出错%v", importTable.Table, err)
 	}
-	atomic.AddInt64(&d.ActualInsertCount, lines)
+	atomic.AddInt64(&importTable.ActualInsertCount, lines)
 
-	seelog.Infof("插入的行数为%v", lines)
+	seelog.Infof("表%s插入的行数为%v", importTable.Table, lines)
 
-	<-d.Import.Ch
+	<-importTable.Ch
 }

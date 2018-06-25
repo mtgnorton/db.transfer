@@ -1,6 +1,10 @@
 package core
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/cihub/seelog"
+)
 
 func (d *Deliver) Beigin(inits ...func()) {
 
@@ -20,23 +24,7 @@ func (d *Deliver) InitBefore() {
 	d.Attach.Chs = make(map[string]chan struct{})
 	d.Attach.Data = make(map[string]*sync.Map)
 
-	if d.Import.Ch == nil {
-		d.Import.Ch = make(chan struct{}, 5)
-
-	}
-	if d.Export.Ch == nil {
-		d.Export.Ch = make(chan struct{}, 5)
-	}
-
-	if d.Import.GoroutineNumber == 0 {
-		d.Import.GoroutineNumber = 5000.00
-
-	}
-
-	if d.Export.GoroutineNumber == 0 {
-		d.Export.GoroutineNumber = 50000.00
-
-	}
+	d.Import = make(map[string]*DbInfo)
 
 }
 
@@ -44,20 +32,54 @@ func (d *Deliver) InitBefore() {
 
 func (d *Deliver) InitAfter() {
 
+	if d.Export.Ch == nil {
+		d.Export.Ch = make(chan struct{}, 5)
+	}
+
+	if d.Export.GoroutineNumber == 0 {
+		d.Export.GoroutineNumber = 50000.00
+
+	}
 	for _, field := range d.Export.Fields {
 		d.Export.FieldsValue[field] = new([]byte)
 	}
-	d.Import.Fields = make([]string, 0, len(d.Import.FieldsValue))
 
-	for key, value := range d.Import.FieldsValue {
-		vf, ok := value.(func(row map[string]*[]byte) string)
-		if ok {
-			d.Import.FieldsValue[key] = ValueFunc(vf)
+	for _, db := range d.Import {
+		if db.Ch == nil {
+			db.Ch = make(chan struct{}, 5)
 		}
-		d.Import.Fields = append(d.Import.Fields, key)
 	}
+
+	for _, db := range d.Import {
+		if db.GoroutineNumber == 0 {
+			db.GoroutineNumber = 5000.00
+		}
+	}
+
+	//声明导入表的导入字段
+	for _, db := range d.Import {
+		db.Fields = make([]string, 0, len(db.FieldsValue))
+	}
+
+	// 获取每个表导入的字段名，并且将字段对应值类型全部改成ValueFunc
+
+	for _, db := range d.Import {
+		for key, value := range db.FieldsValue {
+
+			db.Fields = append(db.Fields, key)
+
+			vf, ok := value.(func(row map[string]*[]byte) string)
+			if ok {
+				db.FieldsValue[key] = ValueFunc(vf)
+			}
+		}
+	}
+
 }
 
-func (d *Deliver) GetActualCount() int64 {
-	return d.ActualInsertCount
+func (d *Deliver) GetActualCount() {
+
+	for _, importTable := range d.Import {
+		seelog.Infof("%s实际插入的记录总量为：%v", importTable.Table, importTable.ActualInsertCount)
+	}
 }
