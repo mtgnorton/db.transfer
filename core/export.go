@@ -140,6 +140,7 @@ func (d *Deliver) ExportTable(startId, endId int, isLast bool) {
 
 		rowData := make(map[string]string)
 
+		//计算每个表需要导入的字段值
 		for _, importTable := range d.Import {
 
 			for _, key := range importTable.Fields {

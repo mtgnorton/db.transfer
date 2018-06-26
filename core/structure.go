@@ -10,18 +10,15 @@ import (
 )
 
 type DbInfo struct {
-	Db              *sql.DB
-	Table           string
-	Fields          []string
-	FieldsValue     map[string]interface{}
-	GoroutineNumber float64       //每个goroutine操作数据的数量
-	Ch              chan struct{} //管理同时进行的进程数量
-
-	InsertData []map[string]string //将要进行插入的数据
-
-	NoInsertCount int64 //不进行插入的数据数量统计
-
-	ActualInsertCount int64 //实际插入数量统计
+	Db                *sql.DB
+	Table             string
+	Fields            []string
+	FieldsValue       map[string]interface{}
+	GoroutineNumber   float64             //每个goroutine操作数据的数量
+	Ch                chan struct{}       //管理同时进行的进程数量
+	InsertData        []map[string]string //将要进行插入的数据
+	NoInsertCount     int64               //不进行插入的数据数量统计
+	ActualInsertCount int64               //实际插入数量统计
 }
 
 type Attach struct {
