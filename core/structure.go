@@ -10,17 +10,16 @@ import (
 )
 
 type Scheduler interface {
-	Submit(InsertDatas)
-	WorkerChan() chan InsertDatas
+	Submit(*InsertDatas)
+	WorkerChan() chan *InsertDatas
 	Run()
-	WorkerReady(chan InsertDatas)
+	WorkerReady(chan *InsertDatas)
+	WorkerLimit(int, int)
 }
 
 type InsertDatas struct {
-	Data    []map[string]string
-	DbInfo  *DbInfo
-	StartId int64
-	EndId   int64
+	Data   *[]map[string]string
+	DbInfo *DbInfo
 }
 
 type DbInfo struct {

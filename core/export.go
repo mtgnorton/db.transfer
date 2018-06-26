@@ -53,7 +53,6 @@ func (d *Deliver) ExportDispatch() {
 
 		isLast = i == int(readGoroutineNumber)-1
 
-		fmt.Println(isLast)
 		go func() {
 			d.ExportTable(startId, endId, isLast)
 			defer func() {
@@ -169,14 +168,23 @@ func (d *Deliver) ExportTable(startId, endId int, isLast bool) {
 	exportRs.Close()
 
 	//将每个线程获取到的数据合并的总的数据中
-	d.Lock()
+	//d.Lock()
+	//
+	//for _, importTable := range d.Import {
+	//
+	//	importTable.InsertData = append(importTable.InsertData, importDataTemp[importTable.Table]...)
+	//}
+	//
+	//d.Unlock()
 
 	for _, importTable := range d.Import {
-
-		importTable.InsertData = append(importTable.InsertData, importDataTemp[importTable.Table]...)
+		data := importDataTemp[importTable.Table]
+		d.Scheduler.Submit(&InsertDatas{
+			&data,
+			importTable,
+		})
+		//importTable.InsertData = append(importTable.InsertData, importDataTemp[importTable.Table]...)
 	}
-
-	d.Unlock()
 
 	seelog.Infof("id从%v到%v读取完成", startId, endId)
 

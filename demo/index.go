@@ -13,6 +13,7 @@ import (
 )
 import (
 	"db.transfer/helper"
+	"db.transfer/scheduler"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -77,6 +78,8 @@ func (d *optimize) InitDefaultData() {
 	//
 	d.Import["match"].FieldsValue = map[string]interface{}{
 
+		"id": core.Value("id", ""),
+
 		"symbol_id": func(row map[string]*[]byte) string {
 
 			name := string(*row["账户"]) + string(*row["货币类型"])
@@ -119,6 +122,7 @@ func (d *optimize) InitDefaultData() {
 	}
 
 	d.Import["test"].FieldsValue = map[string]interface{}{
+		"id":       core.Value("id", ""),
 		"username": core.Value("买入委托", ""),
 	}
 
@@ -180,15 +184,13 @@ func main() {
 	seelog.Info("开始插入")
 	d := optimize{}
 
+	d.Scheduler = &scheduler.QueuedScheduler{}
+
 	d.Beigin(d.Init, d.InitDefaultData)
 
 	go d.GetSymbolInfo()
 
 	go d.GetUserInfo()
-
-	d.ExportDispatch()
-
-	d.ImportDispatch()
 
 	seelog.Info("插入结束")
 

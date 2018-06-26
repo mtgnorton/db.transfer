@@ -15,15 +15,20 @@ func (d *Deliver) Beigin(inits ...func()) {
 	}
 
 	d.InitAfter()
-
+	d.Run()
 }
 
 func (d *Deliver) Run() {
+
+	d.Scheduler.Run()
+	d.Scheduler.WorkerLimit(5, 5000)
 
 	for i := 0; i < int(d.ProcessNumber); i++ {
 		seelog.Infof("插入线程%v开启", i+1)
 		d.CreateInsertWorker()
 	}
+
+	d.ExportDispatch()
 
 }
 
