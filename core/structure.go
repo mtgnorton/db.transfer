@@ -9,6 +9,20 @@ import (
 	"github.com/cihub/seelog"
 )
 
+type Scheduler interface {
+	Submit(InsertDatas)
+	WorkerChan() chan InsertDatas
+	Run()
+	WorkerReady(chan InsertDatas)
+}
+
+type InsertDatas struct {
+	Data    []map[string]string
+	DbInfo  *DbInfo
+	StartId int64
+	EndId   int64
+}
+
 type DbInfo struct {
 	Db                *sql.DB
 	Table             string
@@ -37,10 +51,11 @@ type Deliver struct {
 	Export DbInfo
 	Attach Attach
 
+	Scheduler Scheduler //通过队列实现一边读取，一边插入
 	sync.Mutex
-
-	Test    Test //进行100行的数据插入测试
-	Predict bool //预处理，不进行实际插入
+	ProcessNumber int64
+	Test          Test //进行100行的数据插入测试
+	Predict       bool //预处理，不进行实际插入
 
 }
 

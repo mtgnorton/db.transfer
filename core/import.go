@@ -68,7 +68,12 @@ func (d *Deliver) ImportDispatch() {
 
 }
 
-func (d *Deliver) Insert(importTable *DbInfo, transfersSlice []map[string]string, start int, end int) {
+func (d *Deliver) Insert(insertDatas InsertDatas) {
+
+	importTable := insertDatas.DbInfo
+	transfersSlice := insertDatas.Data
+	start := insertDatas.StartId
+	end := insertDatas.EndId
 
 	var buffer bytes.Buffer
 

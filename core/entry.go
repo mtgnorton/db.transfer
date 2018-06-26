@@ -15,6 +15,32 @@ func (d *Deliver) Beigin(inits ...func()) {
 	}
 
 	d.InitAfter()
+
+}
+
+func (d *Deliver) Run() {
+
+	for i := 0; i < int(d.ProcessNumber); i++ {
+		seelog.Infof("插入线程%v开启", i+1)
+		d.CreateInsertWorker()
+	}
+
+}
+
+func (d *Deliver) CreateInsertWorker() {
+	in := d.Scheduler.WorkerChan()
+
+	go func() {
+
+		for {
+
+			d.Scheduler.WorkerReady(in)
+
+			insertDatas := <-in
+
+			d.Insert(insertDatas)
+		}
+	}()
 }
 
 func (d *Deliver) InitBefore() {
