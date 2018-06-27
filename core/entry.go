@@ -3,6 +3,8 @@ package core
 import (
 	"sync"
 
+	"fmt"
+
 	"github.com/cihub/seelog"
 )
 
@@ -22,7 +24,7 @@ func (d *Deliver) Run() {
 
 	d.Scheduler.Run()
 	d.Scheduler.WorkerLimit(5, 5000)
-
+	d.ProcessNumber = 5
 	for i := 0; i < int(d.ProcessNumber); i++ {
 		seelog.Infof("插入线程%v开启", i+1)
 		d.CreateInsertWorker()
@@ -42,6 +44,8 @@ func (d *Deliver) CreateInsertWorker() {
 			d.Scheduler.WorkerReady(in)
 
 			insertDatas := <-in
+
+			fmt.Println(len(*insertDatas.Data))
 
 			d.Insert(insertDatas)
 		}

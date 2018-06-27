@@ -12,6 +12,8 @@ import (
 	"github.com/cihub/seelog"
 )
 import (
+	"time"
+
 	"db.transfer/helper"
 	"db.transfer/scheduler"
 	_ "github.com/go-sql-driver/mysql"
@@ -58,6 +60,7 @@ func (d *optimize) Init() {
 		"账户",
 		"货币类型",
 		"卖出手续费金额",
+		"id",
 	}
 
 	//d.Test.Open = true
@@ -158,6 +161,7 @@ func (d *optimize) GetSymbolInfo() {
 		seelog.Errorf("读取coin_symbol出错%v", err)
 		fmt.Printf("读取coin_symbol出错%v", err)
 	}
+
 	var count int
 	for users.Next() {
 		var name string
@@ -176,7 +180,9 @@ func (d *optimize) GetSymbolInfo() {
 }
 
 func main() {
+
 	helper.SetLogger("logConfig.xml")
+
 	defer func() {
 		seelog.Flush()
 	}()
@@ -186,11 +192,14 @@ func main() {
 
 	d.Scheduler = &scheduler.QueuedScheduler{}
 
+	go func() {
+		time.Sleep(time.Second)
+		go d.GetSymbolInfo()
+
+		go d.GetUserInfo()
+
+	}()
 	d.Beigin(d.Init, d.InitDefaultData)
-
-	go d.GetSymbolInfo()
-
-	go d.GetUserInfo()
 
 	seelog.Info("插入结束")
 
